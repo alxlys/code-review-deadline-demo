@@ -1,0 +1,39 @@
+name: Review deadline email digest
+
+on:
+  workflow_dispatch:
+    inputs:
+      send:
+        description: Send the digest email (otherwise preview it in the run log)
+        required: true
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 9 * * 1-5'
+      timezone: 'Europe/Sofia'
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || vars.REVIEW_DIGEST_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Build and deliver digest
+        env:
+          PROJECTS_READ_TOKEN: ${{ secrets.PROJECTS_READ_TOKEN }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          MAIL_TO: ${{ secrets.REVIEW_DIGEST_TO }}
+          SEND_EMAIL: ${{ github.event_name == 'schedule' || inputs.send }}
+        run: python .github/scripts/review_deadline_digest.py
